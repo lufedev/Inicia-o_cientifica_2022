@@ -80,9 +80,17 @@ df_2019_comparative = pd.merge(df_2019, df_analfabetismo_2019, on="UF")
 df_2020_comparative = pd.merge(df_2020, df_analfabetismo_2020, on="UF")
 df_2021_comparative = pd.merge(df_2021, df_analfabetismo_2021, on="UF")
 
-UF_grouped = df_2021_comparative.groupby("UF")
+# UF_grouped = df_2019_comparative.groupby("UF")
+# for uf, grupo in UF_grouped:
+#     tabela_uf = grupo.copy()
+#     tabela_uf["UF"] = tabela_uf["UF"].apply(lambda x: f"{x} 2019")
+#     tabela_uf.to_csv(f"./dados/Filtered/2019/{uf}-2019.csv", index=False)
 
-for uf, grupo in UF_grouped:
-    tabela_uf = grupo.copy()
 
-    tabela_uf.to_csv(f"./dados/Filtered/2021/{uf}-2021.csv", index=False)
+Acre2019 = pd.read_csv("./dados/Filtered/2019/Acre-2019.csv")
+Acre2020 = pd.read_csv("./dados/Filtered/2020/Acre-2020.csv")
+Acre2021 = pd.read_csv("./dados/Filtered/2021/Acre-2021.csv")
+
+Acre = Acre2019.append((Acre2020, Acre2021), ignore_index=True)
+profile = ProfileReport(Acre, title="report_acre")
+profile.to_file("report.html")

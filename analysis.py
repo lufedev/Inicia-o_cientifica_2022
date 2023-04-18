@@ -49,6 +49,30 @@ def getSulEvo():
     return sqlio.read_sql_query(query, conn)
 
 
-getSudesteEvo().plot.bar()
-getNordesteEvo().plot.bar()
+def getUF2019():
+    query = 'select * from "uf_2019";'
+    return sqlio.read_sql_query(query, conn)
+
+
+def getUF2020():
+    query = 'select * from "uf_2020";'
+    return sqlio.read_sql_query(query, conn)
+
+
+def getUF2021():
+    query = 'select * from "uf_2021";'
+    return sqlio.read_sql_query(query, conn)
+
+
+def getAnalfabetismo():
+    query = 'select * from "analfabetismo2019";'
+    return sqlio.read_sql_query(query, conn)
+
+
+df_2019 = getUF2019()
+df_2020 = getUF2020()
+df_2021 = getUF2021()
+analfabetismo = getAnalfabetismo()
+
+print(analfabetismo)
 plt.show()

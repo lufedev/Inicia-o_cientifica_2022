@@ -64,15 +64,25 @@ def getUF2021():
     return sqlio.read_sql_query(query, conn)
 
 
-def getAnalfabetismo():
-    query = 'select * from "analfabetismo2019";'
+def getAnalfabetismo(year):
+    query = 'select "UF","' + year + '" from "analfabetismo2019";'
     return sqlio.read_sql_query(query, conn)
 
 
 df_2019 = getUF2019()
 df_2020 = getUF2020()
 df_2021 = getUF2021()
-analfabetismo = getAnalfabetismo()
+df_analfabetismo_2019 = getAnalfabetismo("2019")
+df_analfabetismo_2020 = getAnalfabetismo("2020")
+df_analfabetismo_2021 = getAnalfabetismo("2021")
 
-print(analfabetismo)
-plt.show()
+df_2019_comparative = pd.merge(df_2019, df_analfabetismo_2019, on="UF")
+df_2020_comparative = pd.merge(df_2020, df_analfabetismo_2020, on="UF")
+df_2021_comparative = pd.merge(df_2021, df_analfabetismo_2021, on="UF")
+
+UF_grouped = df_2021_comparative.groupby("UF")
+
+for uf, grupo in UF_grouped:
+    tabela_uf = grupo.copy()
+
+    tabela_uf.to_csv(f"./dados/Filtered/2021/{uf}-2021.csv", index=False)

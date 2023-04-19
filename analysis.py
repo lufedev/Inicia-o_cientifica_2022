@@ -2,108 +2,87 @@ import pandas.io.sql as sqlio
 import psycopg2
 import pandas as pd
 import matplotlib.pyplot as plt
+import functools as ft
+import os
 from ydata_profiling import ProfileReport
 
+# COISAS IMPORTANTES
+diretorio = "./dados/Filtered/"
 conn = psycopg2.connect(
-    "dbname = 'postgres' user = 'postgres' host = 'localhost' port = '7777' password = 'ic_2023'"
+    # 192.168.15.45
+    "dbname = 'postgres' user = 'postgres' host = '192.168.15.45' port = '7777' password = 'ic_2023'"
 )
 
-
-def get2019():
-    query = 'select * from "total_2019";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def get2020():
-    query = 'select * from "total_2020";'
-    return sqlio.read_sql_query(query, conn)
+anos = ["2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021"]
+df_ufs = {}
+df_analfabetismo = {}
+df_renda = {}
+dfs_comparativos = {}
+UF = {}
 
 
-def get2021():
-    query = 'select * from "total_2021";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getSudesteEvo():
-    query = 'select * from "sudeste_evo";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getCentroOesteEvo():
-    query = 'select * from "centro_oeste_evo";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getNorteEvo():
-    query = 'select * from "norte_evo";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getNordesteEvo():
-    query = 'select * from "nordeste_evo";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getSulEvo():
-    query = 'select * from "sul_evo";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getUF2019():
-    query = 'select * from "uf_2019";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getUF2020():
-    query = 'select * from "uf_2020";'
-    return sqlio.read_sql_query(query, conn)
-
-
-def getUF2021():
-    query = 'select * from "uf_2021";'
+# QUERIES
+def getUF(year):
+    query = 'select * from "uf_' + year + '";'
     return sqlio.read_sql_query(query, conn)
 
 
 def getAnalfabetismo(year):
-    query = 'select "UF","' + year + '" from "analfabetismo2019";'
+    query = 'select "UF","' + year + '" from "analfabetismo";'
     return sqlio.read_sql_query(query, conn)
 
 
-df_2019 = getUF2019()
-df_2020 = getUF2020()
-df_2021 = getUF2021()
-df_analfabetismo_2019 = getAnalfabetismo("2019")
-df_analfabetismo_2020 = getAnalfabetismo("2020")
-df_analfabetismo_2021 = getAnalfabetismo("2021")
+def getRenda(year):
+    query = 'select "UF","' + year + '" from "rendapercapita";'
+    return sqlio.read_sql_query(query, conn)
 
 
-df_2019_comparative = pd.merge(df_2019, df_analfabetismo_2019.rename(columns={"2019":"Analfabetismo"}), on="UF")
-df_2020_comparative = pd.merge(df_2020, df_analfabetismo_2020.rename(columns={"2020":"Analfabetismo"}), on="UF")
-df_2021_comparative = pd.merge(df_2021, df_analfabetismo_2021.rename(columns={"2021":"Analfabetismo"}), on="UF")
+# Coleta a cv anual
+for ano in anos:
+    df_ufs[ano] = getUF(ano)
+    df_analfabetismo[ano] = getAnalfabetismo(ano)
+    df_renda[ano] = getRenda(ano)
 
-UF_grouped = df_2020_comparative.groupby("UF")
-for uf, grupo in UF_grouped:
-    tabela_uf = grupo.copy()
-    tabela_uf["UF"] = tabela_uf["UF"].apply(lambda x: f"{x} 2020")
-    tabela_uf.to_csv(f"./dados/Filtered/2020/{uf}-2020.csv", index=False)
+# Mescla a tabela de analfabetismo com a tabela de CV, renomeia a coluna que contém o ano para Analfabetismo
+for ano in anos:
+    dfs = [
+        df_ufs[ano],
+        df_analfabetismo[ano].rename(columns={ano: "Analfabetismo"}),
+        df_renda[ano].rename(columns={ano: "Renda_per_capita"}),
+    ]
 
+    dfs_comparativos[ano] = ft.reduce(
+        lambda left, right: pd.merge(left, right, on="UF"), dfs
+    )
+# Exporta individualmente cada estado brasileiro, separando por ano.
+for ano, df_comparativo in dfs_comparativos.items():
+    UF_grouped = df_comparativo.groupby("UF")
+    for uf, grupo in UF_grouped:
+        tabela_uf = grupo.copy()
+        tabela_uf["UF"] = tabela_uf["UF"].apply(lambda x: f"{x} {ano}")
+        tabela_uf.to_csv(f"./dados/Filtered/{ano}/{uf}-{ano}.csv", index=False)
 
-Acre2019 = pd.read_csv("./dados/Filtered/2019/Acre-2019.csv")
-Acre2020 = pd.read_csv("./dados/Filtered/2020/Acre-2020.csv")
-Acre2021 = pd.read_csv("./dados/Filtered/2021/Acre-2021.csv")
+# Agrupa todos os resultados por Estado.
+for subdir, _, files in os.walk(diretorio):
+    for file in files:
+        if file.endswith(".csv"):
+            caminho_arquivo = os.path.join(subdir, file)
+            # obter o nome do estado a partir do nome do arquivo
+            estado = file.split("-")[0]
+            # ler a tabela
+            tabela = pd.read_csv(caminho_arquivo)
+            # adicionar a coluna "UF" com o nome do estado
+            tabela["UF"] = estado
+            # adicionar a tabela no dicionário de UF
+            if estado in UF:
+                UF[estado] = pd.concat([UF[estado], tabela])
+            else:
+                UF[estado] = tabela
+# Remove a coluna UF
+for estado, tabela in UF.items():
+    tabela = tabela.fillna(0)
+    tabela = tabela.drop(columns=["UF"])
+    UF[estado] = tabela
 
-Acre = Acre2019.append((Acre2020, Acre2021), ignore_index=True)
-Acre = Acre.fillna(0)
-
-Acre = Acre.drop(columns=['UF'])
-print(Acre['Analfabetismo'])
-
-print(Acre.corr(Acre['Analfabetismo']))
-# Acre_report = ProfileReport(Acre, title="Report")
-# Acre_report.to_file("report.html")
-# #Make the plot
-# plt.bar(Acre.iloc[0:1])
-# plt.bar(Acre.iloc[1:2])
-# plt.bar(Acre.iloc[2:3])
-# plt.xlabel('Ano')
-# plt.show('')
+print(UF["Sao Paulo"]["Renda_per_capita"])
+print(UF["Sao Paulo"]["BCG"].corr(UF["Sao Paulo"]["Analfabetismo"]))

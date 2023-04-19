@@ -1,10 +1,12 @@
 import pandas.io.sql as sqlio
 import psycopg2
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import functools as ft
 import os
 from ydata_profiling import ProfileReport
+from sklearn.linear_model import LinearRegression
 
 # COISAS IMPORTANTES
 diretorio = "./dados/Filtered/"
@@ -37,6 +39,15 @@ def getRenda(year):
     return sqlio.read_sql_query(query, conn)
 
 
+def genFile(ano, dfs_comparativos):
+    for ano, df_comparativo in dfs_comparativos.items():
+        UF_grouped = df_comparativo.groupby("UF")
+    for uf, grupo in UF_grouped:
+        tabela_uf = grupo.copy()
+        tabela_uf["UF"] = tabela_uf["UF"].apply(lambda x: f"{x} {ano}")
+        tabela_uf.to_csv(f"./dados/Filtered/{ano}/{uf}-{ano}.csv", index=False)
+
+
 # Coleta a cv anual
 for ano in anos:
     df_ufs[ano] = getUF(ano)
@@ -55,12 +66,8 @@ for ano in anos:
         lambda left, right: pd.merge(left, right, on="UF"), dfs
     )
 # Exporta individualmente cada estado brasileiro, separando por ano.
-for ano, df_comparativo in dfs_comparativos.items():
-    UF_grouped = df_comparativo.groupby("UF")
-    for uf, grupo in UF_grouped:
-        tabela_uf = grupo.copy()
-        tabela_uf["UF"] = tabela_uf["UF"].apply(lambda x: f"{x} {ano}")
-        tabela_uf.to_csv(f"./dados/Filtered/{ano}/{uf}-{ano}.csv", index=False)
+# genFile(ano, dfs_comparativos)
+
 
 # Agrupa todos os resultados por Estado.
 for subdir, _, files in os.walk(diretorio):
@@ -84,5 +91,16 @@ for estado, tabela in UF.items():
     tabela = tabela.drop(columns=["UF"])
     UF[estado] = tabela
 
-print(UF["Sao Paulo"]["Renda_per_capita"])
-print(UF["Sao Paulo"]["BCG"].corr(UF["Sao Paulo"]["Analfabetismo"]))
+x = np.array(UF["Sao Paulo"]["Analfabetismo"]).reshape((-1, 1))
+y = np.array(UF["Sao Paulo"]["BCG"])
+
+# https://realpython.com/linear-regression-in-python/
+
+model = LinearRegression().fit(x, y)
+r_sq = model.score(x, y)
+print(f"R²: {r_sq}")
+
+y_pred = model.predict(x)
+print(x, y)
+print(UF["Acre"])
+print(f"predicted response:\n{y_pred}")

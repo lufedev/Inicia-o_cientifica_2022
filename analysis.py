@@ -10,6 +10,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeClassifier  # Import Decision Tree Classifier
 from sklearn.model_selection import train_test_split  # Import train_test_split function
 from sklearn.tree import export_graphviz
+from graphviz import Source
+from sklearn.metrics import accuracy_score
 from six import StringIO
 from IPython.display import Image
 import pydotplus
@@ -25,12 +27,51 @@ conn = psycopg2.connect(
     # 192.168.15.45
     "dbname = 'postgres' user = 'postgres' host = '192.168.15.45' port = '7777' password = 'ic_2023'"
 )
-
-anos = ["2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021"]
-df_ufs = {}
-df_analfabetismo = {}
-df_renda = {}
-dfs_comparativos = {}
+uf = [
+    "AC",
+    "AL",
+    "AP",
+    "AM",
+    "BA",
+    "CE",
+    "DF",
+    "ES",
+    "GO",
+    "MA",
+    "MT",
+    "MS",
+    "MG",
+    "PA",
+    "PB",
+    "PR",
+    "PE",
+    "PI",
+    "RJ",
+    "RN",
+    "RS",
+    "RO",
+    "RR",
+    "SC",
+    "SP",
+    "SE",
+    "TO",
+]
+anos = [
+    "2010",
+    "2011",
+    "2012",
+    "2013",
+    "2014",
+    "2015",
+    "2016",
+    "2017",
+    "2018",
+    "2019",
+    "2020",
+]
+df_ano = {}
+df_filtrado = {}
+df_estado = {}
 UF = {}
 
 
@@ -50,76 +91,56 @@ def getByYear(year):
 #     return sqlio.read_sql_query(query, conn)
 
 
-# def genFile(ano, dfs_comparativos):
-#     for ano, df_comparativo in dfs_comparativos.items():
-#         UF_grouped = df_comparativo.groupby("UF")
-#     for uf, grupo in UF_grouped:
-#         tabela_uf = grupo.copy()
-#         tabela_uf["UF"] = tabela_uf["UF"].apply(lambda x: f"{x} {ano}")
-#         tabela_uf.to_csv(f"./dados/Filtered/{ano}/{uf}-{ano}.csv", index=False)
+def separarPorCritério(df, criterio, variable, filename):
+    df_filtrado[filename] = df.loc[df[criterio] == variable]
+    # df.loc[df[criterio] == variable].to_csv(
+    #     "/home/luiz/Documentos/Iniciacao_cientifica_2022/dados/porUF/" + filename,
+    #     index=False,
+    # )
 
 
-dfAno = getByYear("2010")
-colunas = []
-for coluna in dfAno.columns:
-    if (
-        coluna == "regiao_geo"
-        or coluna == "nomemun"
-        or coluna == "capital"
-        or coluna == "id_munic_7"
-        or coluna == "id_estado"
-        or coluna == "estado_abrev"
-        or coluna == "estado"
-        or coluna == "regiao"
-        or coluna == "no_regiao"
-        or coluna == "macrorregiao"
-        or coluna == "no_macro"
-    ):
-        continue  # pular a coluna3
-    colunas.append(coluna)
+def genDecisionTree(X, y):
+    print("")
 
-X = dfAno[colunas]
-y = dfAno["id_estado"]
 
-# Split dataset into training set and test set
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=1
-)  # 70% training and 30% test
+# Coleta a cv anual
+for ano in anos:
+    df_ano[ano] = getByYear(ano)
+    for estado in uf:
+        separarPorCritério(df_ano[ano], "estado_abrev", estado, ano + "_" + estado)
 
-# Create Decision Tree classifer object
-clf = DecisionTreeClassifier()
+for estado in uf:
+    dfs_estado = []
+    for ano in anos:
+        df_ano_estado = df_filtrado[ano + "_" + estado]
+        if not df_ano_estado.empty:
+            dfs_estado.append(df_ano_estado)
+    if len(dfs_estado) > 0:
+        df_estado[estado] = pd.concat(dfs_estado)
 
-# Train Decision Tree Classifer
-clf = clf.fit(X_train, y_train)
-
-# Predict the response for test dataset
-y_pred = clf.predict(X_test)
-
-# Model Accuracy, how often is the classifier correct?
-
-print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
-# dot_data = StringIO()
-# export_graphviz(
-#     clf,
-#     out_file=dot_data,
-#     filled=True,
-#     rounded=True,
-#     special_characters=True,
-#     feature_names=colunas,
-#     class_names=["0", "1"],
-# )
-# graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
-# graph.write_png("cv_vacinal.png")
-# Image(graph.create_png())
+feature_cols = ["exp_vida", "idhm", "cob_vac_bcg"]
+for estado, df_estado in df_estado.items():
+    X = df_estado[feature_cols]
+    y = df_estado["ano"]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    dtc = DecisionTreeClassifier()
+    dtc.fit(X_train, y_train)
+    y_pred = dtc.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    print(f"Acurácia para o estado {estado}: {acc}")
+    dot_data = export_graphviz(
+        dtc, out_file=None, feature_names=feature_cols, class_names=anos, rounded=True
+    )
+    graph = Source(dot_data)
+    graph.render(
+        f"/home/luiz/Documentos/Iniciacao_cientifica_2022/exported/DT/{estado}_decision_tree"
+    )
 
 
 def old_stuff():
     print("")
-    # # Coleta a cv anual
-    # for ano in anos:
-    #     df_ufs[ano] = getUF(ano)
-    #     df_analfabetismo[ano] = getAnalfabetismo(ano)
-    #     df_renda[ano] = getRenda(ano)
 
     # # Mescla a tabela de analfabetismo com a tabela de CV, renomeia a coluna que contém o ano para Analfabetismo
     # for ano in anos:

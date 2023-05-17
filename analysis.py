@@ -117,11 +117,14 @@ for estado in uf:
             dfs_estado.append(df_ano_estado)
     if len(dfs_estado) > 0:
         df_estado[estado] = pd.concat(dfs_estado)
+print(df_estado["SP"]["cob_vac_bcg"])
+feature_cols = ["exp_vida", "idhm", "tx_mort"]
 
-feature_cols = ["exp_vida", "idhm", "cob_vac_bcg"]
+# profile = ProfileReport(df_estado["SP"], title="SP")
+# profile.to_file("SP.html")
 for estado, df_estado in df_estado.items():
     X = df_estado[feature_cols]
-    y = df_estado["ano"]
+    y = df_estado["cob_vac_bcg"]
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -135,7 +138,7 @@ for estado, df_estado in df_estado.items():
     )
     graph = Source(dot_data)
     graph.render(
-        f"/home/luiz/Documentos/Iniciacao_cientifica_2022/exported/DT/{estado}_decision_tree"
+        f"F:\Luizf\Documents\Iniciacao_cientifica_2022\exported\{estado}_decision_tree"
     )
 
 

@@ -8,10 +8,11 @@ import os
 from ydata_profiling import ProfileReport
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.metrics import mean_squared_error
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.metrics import mean_squared_error, confusion_matrix
 from sklearn.tree import export_graphviz
 from graphviz import Source
+import seaborn as sns
 from sklearn.metrics import accuracy_score
 from six import StringIO
 from IPython.display import Image
@@ -89,6 +90,7 @@ colunas_a_pular = [
     "no_regiao",
     "macrorregiao",
     "no_macro",
+    "cob_vac_bcg",
 ]
 
 
@@ -173,6 +175,7 @@ feature_cols = ["exp_vida", "idhm", "tx_mort"]
 for estado, df_normalizado in zip(uf, dfs_normalizados):
     X = df_normalizado[feature_cols]
     y = df_normalizado["cob_vac_bcg"]
+    print(y)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -181,6 +184,12 @@ for estado, df_normalizado in zip(uf, dfs_normalizados):
     y_pred = dt_reg.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
     print(f"MSE para o estado {estado}: {mse}")
+    cm = confusion_matrix(y_test, y_pred)
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title(f"Confusion Matrix for {estado}")
+    plt.show()
     dot_data = export_graphviz(
         dt_reg, out_file=None, feature_names=feature_cols, rounded=True
     )

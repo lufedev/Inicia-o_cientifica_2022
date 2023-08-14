@@ -143,6 +143,8 @@ for estado in uf:
 
 # Normalizar os DataFrames para cada estado
 dfs_normalizados = []
+# for estado, df_estado in zip(uf, dfs_estados):
+#     df_estado.to_csv("./dados/dados -" + estado + ".csv", index=False)
 for df_estado in dfs_estados:
     col_to_normalize = df_estado.select_dtypes(include=[float, int]).columns
     col_to_normalize = [col for col in col_to_normalize if col not in colunas_a_pular]
@@ -159,44 +161,48 @@ for df_estado in dfs_estados:
     dfs_normalizados.append(df_estado_normalizado)
 
 # Exibir o DataFrame normalizado para o estado de São Paulo (SP)
-
+# for estado, df_normalizado in zip(uf, dfs_normalizados):
+#     df_normalizado.to_csv("./dados/dados_normalizados -" + estado + ".csv", index=False)
 # print(dfs_normalizados[uf.index("SP")])
 
-feature_cols = ["exp_vida", "idhm", "tx_mort"]
+feature_cols = ["exp_vida", "idhm"]
 
-# for estado, df_normalizado in zip(uf, dfs_normalizados):
-#     df_normalizado_excluded = df_normalizado.drop(columns=colunas_a_pular)
-#     profile = ProfileReport(
-#         df_normalizado_excluded,
-#         title=estado,
-#         explorative=True,
-#     )
-#     profile.to_file(f"{estado}.html")
+for estado, df_normalizado in zip(uf, dfs_normalizados):
+    df_normalizado_excluded = df_normalizado.drop(columns=colunas_a_pular)
+    profile = ProfileReport(
+        df_normalizado_excluded,
+        title=estado,
+        explorative=True,
+    )
+    print(profile)
+    profile.to_file(f"{estado}.html")
 for estado, df_normalizado in zip(uf, dfs_normalizados):
     X = df_normalizado[feature_cols]
     y = df_normalizado["cob_vac_bcg"]
-    print(y)
+    # print(y)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
-    dt_reg = DecisionTreeRegressor()
+    dt_reg = DecisionTreeClassifier()
     dt_reg.fit(X_train, y_train)
     y_pred = dt_reg.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
-    print(f"MSE para o estado {estado}: {mse}")
+    # print("Predicted:", y_pred)
+    # print("Actual:", y_test)
+    # print(f"MSE para o estado {estado}: {mse}")
     cm = confusion_matrix(y_test, y_pred)
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    plt.title(f"Confusion Matrix for {estado}")
+    plt.title(f"{estado}")
     plt.show()
-    dot_data = export_graphviz(
-        dt_reg, out_file=None, feature_names=feature_cols, rounded=True
-    )
-    graph = Source(dot_data)
-    graph.render(
-        f"F:/Luizf/Documents/Iniciacao_cientifica_2022/exported/{estado}_decision_tree"
-    )
+    # dot_data = export_graphviz(
+    #     dt_reg, out_file=None, feature_names=feature_cols, rounded=True
+    # )
+    # graph = Source(dot_data)
+    # graph.render(
+    #     f"F:/Luizf/Documents/Iniciacao_cientifica_2022/exported/{estado}_decision_tree"
+    # )
 
 
 # #def old_stuff():
